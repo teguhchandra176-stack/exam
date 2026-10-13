@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    background-color: #f2fdff;
+    touch-action: pan-x pan-y;
+  }
+}
+
+/* Kiosk Strict Mode Protections */
+.kiosk-protected {
+  overscroll-behavior-y: none;
+  touch-action: none;
+}
+
+/* Subtle Animated Marquee for Emergency Broadcast */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 20s linear infinite;
+}
+
+/* Official Document Print Styles */
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+}
+
+/* Dynamic Anti-Screen Record Watermark Overlay */
+.watermark-grid {
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(2, 132, 199, 0.035) 0px,
+    rgba(2, 132, 199, 0.035) 150px,
+    transparent 150px,
+    transparent 300px
+  );
+}

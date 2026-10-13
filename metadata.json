@@ -1,0 +1,6 @@
+{
+  "name": "BAGJA EXAM - SMP Negeri 7 Cimahi",
+  "description": "Aplikasi pengaman khusus untuk menjaga integritas ujian sekolah yang aman, cepat, dan transparan. Tangguh, Juara, Pasti Bisa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
