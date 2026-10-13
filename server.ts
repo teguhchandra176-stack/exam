@@ -75,45 +75,20 @@ function checkAndRotateTokenIfExpired(db: any): boolean {
       db.schedules.forEach((s: any) => {
         if (s.isActive) s.token = newToken;
       });
+      if (!db.schedules.some((s: any) => s.isActive) && db.schedules.length > 0) {
+        db.schedules[0].token = newToken;
+      }
     }
     return true;
   }
   return false;
 }
 
-// Auto-sync schedule isActive status according to date, startTime, and endTime
+// Auto-sync schedule isActive status without overriding admin manual start/stop
 function autoSyncSchedules(db: any): boolean {
   if (!db || !db.schedules) return false;
   let changed = false;
-  const now = new Date();
-
-  db.schedules.forEach((sch: any) => {
-    try {
-      let year = now.getFullYear();
-      let month = now.getMonth();
-      let day = now.getDate();
-      if (sch.date && /^\d{4}-\d{2}-\d{2}$/.test(sch.date)) {
-        const [y, m, d] = sch.date.split('-').map(Number);
-        year = y;
-        month = m - 1;
-        day = d;
-      }
-      const [startH, startM] = (sch.startTime || '07:30').split(':').map(Number);
-      const [endH, endM] = (sch.endTime || '09:00').split(':').map(Number);
-      const startDate = new Date(year, month, day, isNaN(startH) ? 7 : startH, isNaN(startM) ? 30 : startM, 0, 0);
-      const endDate = new Date(year, month, day, isNaN(endH) ? 9 : endH, isNaN(endM) ? 0 : endM, 0, 0);
-      if (endDate.getTime() <= startDate.getTime()) {
-        endDate.setDate(endDate.getDate() + 1);
-      }
-      const nowMs = now.getTime();
-      const shouldBeActive = nowMs >= startDate.getTime() && nowMs < endDate.getTime();
-      if (sch.isActive !== shouldBeActive) {
-        sch.isActive = shouldBeActive;
-        changed = true;
-      }
-    } catch (_) {}
-  });
-
+  // Preserve admin manual activation state.
   return changed;
 }
 
@@ -396,7 +371,11 @@ app.post('/api/token/rotate', (req, res) => {
     if (sch) sch.token = newToken;
   } else {
     const activeSch = db.schedules.find((s: any) => s.isActive);
-    if (activeSch) activeSch.token = newToken;
+    if (activeSch) {
+      activeSch.token = newToken;
+    } else if (db.schedules && db.schedules.length > 0) {
+      db.schedules[0].token = newToken;
+    }
   }
 
   writeDatabase(db);

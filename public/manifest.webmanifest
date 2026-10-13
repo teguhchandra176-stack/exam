@@ -1,19 +1,40 @@
 {
+  "id": "/",
   "name": "BAGJA EXAM - SMP Negeri 7 Cimahi",
   "short_name": "BAGJA EXAM",
+  "description": "Aplikasi pengaman khusus untuk menjaga integritas ujian sekolah yang aman, cepat, dan transparan. SMP Negeri 7 Cimahi.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "display_override": ["fullscreen", "standalone", "window-controls-overlay"],
   "orientation": "portrait",
   "background_color": "#f2fdff",
   "theme_color": "#0284c7",
-  "description": "Aplikasi Pengaman Khusus Ujian Sekolah SMP Negeri 7 Cimahi",
+  "categories": ["education", "utilities"],
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%230284c7'/><path d='M256 64L96 144v112c0 118.5 68.3 229.1 160 256 91.7-26.9 160-137.5 160-256V144L256 64zm-24 304l-72-72 34-34 38 38 106-106 34 34-140 140z' fill='%23ffffff'/></svg>",
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-sekolah.svg",
+      "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

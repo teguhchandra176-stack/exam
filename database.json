@@ -13,9 +13,9 @@
     "soundAlarmEnabled": true,
     "mobileKioskStrict": true,
     "screenWakeLock": true,
-    "currentToken": "NBS225",
+    "currentToken": "TEL696",
     "tokenRotationMinutes": 7,
-    "tokenLastRotated": "2026-10-13T07:00:56.111Z",
+    "tokenLastRotated": "2026-10-13T08:42:57.352Z",
     "logoPemkot": "/logo-pemda.svg",
     "logoSekolah": "/logo-sekolah.svg",
     "faviconUrl": "",
@@ -167,10 +167,10 @@
         "9-I",
         "9-J"
       ],
-      "token": "NSZ282",
+      "token": "NFX745",
       "formUrl": "https://docs.google.com/forms/d/e/1FAIpQLSfT3ia5kTFu8a_rNEwwBUxHIWPtb_wiEfE0l0Hb17R0r8XWUw/viewform?usp=dialog",
       "classFormUrls": {},
-      "isActive": false,
+      "isActive": true,
       "description": "PSAS",
       "totalQuestions": 40
     }
@@ -20273,6 +20273,14 @@
   "broadcasts": [],
   "auditLogs": [
     {
+      "id": "LOG-1791878756707",
+      "timestamp": "2026-10-13T08:05:56.707Z",
+      "userId": "ADMIN",
+      "action": "Hentikan Ujian",
+      "category": "Sistem",
+      "details": "Ujian Informatika dihentikan."
+    },
+    {
       "id": "LOG-1791869014562",
       "timestamp": "2026-10-13T05:23:34.562Z",
       "userId": "ADMIN",
@@ -20306,7 +20314,7 @@
     }
   ],
   "integrityLogs": [],
-  "auditAction": "Smart Import Siswa",
-  "auditDetails": "Smart Import: 1102 peserta siswa berhasil diimpor (Mode Tambahkan).",
+  "auditAction": "Hentikan Ujian",
+  "auditDetails": "Ujian Informatika dihentikan.",
   "supervisionDuties": []
 }

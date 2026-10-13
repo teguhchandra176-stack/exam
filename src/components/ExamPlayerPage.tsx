@@ -16,7 +16,19 @@ import {
   Monitor,
   ExternalLink,
   Info,
-  Calendar
+  Calendar,
+  Cast,
+  Columns2,
+  RotateCcw,
+  VolumeX,
+  ShieldCheck,
+  HelpCircle,
+  Check,
+  EyeOff,
+  Layers,
+  ChevronRight,
+  Sparkles,
+  Sliders
 } from 'lucide-react';
 import { Student, Schedule, SystemConfig, DeviceType } from '../types';
 import { apiClient } from '../services/apiClient';
@@ -28,6 +40,7 @@ import {
   parseScheduleDateTimes,
   formatSecondsToHHMMSS
 } from '../services/scheduleTiming';
+import { ExamCountdownTimer } from './ExamCountdownTimer';
 
 interface ExamPlayerPageProps {
   student: Student;
@@ -52,23 +65,43 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
 
+  // Maximum Mobile & Tablet Security Suite States
+  const [isLandscapeLocked, setIsLandscapeLocked] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && window.innerWidth > window.innerHeight && deviceType !== 'Komputer';
+  });
+  const [isSplitScreenDetected, setIsSplitScreenDetected] = useState<boolean>(false);
+  const [isCastingDetected, setIsCastingDetected] = useState<boolean>(false);
+  const [isFlagSecureCurtainActive, setIsFlagSecureCurtainActive] = useState<boolean>(false);
+  const [showSecurityGuideModal, setShowSecurityGuideModal] = useState<boolean>(false);
+  const [liveForensicTime, setLiveForensicTime] = useState<string>(() => new Date().toLocaleTimeString('id-ID'));
+  const [edgeSwipeWarningToast, setEdgeSwipeWarningToast] = useState<string | null>(null);
+
   // Real-time Schedule Timing Analysis (Strictly follows scheduled startTime & endTime)
   const initialScheduleTiming = getScheduleTiming(schedule);
   const totalDurationSeconds = initialScheduleTiming.totalDurationSeconds;
 
-  // Initialize remaining seconds strictly bounded by schedule start and end time
+  // Initialize remaining seconds strictly bounded by schedule start and end time (or session duration if active)
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState<number>(() => {
-    if (initialScheduleTiming.isFinished) return 0;
     if (initialScheduleTiming.isOngoing) return initialScheduleTiming.remainingSeconds;
+    if (schedule.isActive) return totalDurationSeconds;
+    if (initialScheduleTiming.isFinished) return 0;
     return totalDurationSeconds;
   });
 
-  const [isTimeExpired, setIsTimeExpired] = useState<boolean>(initialScheduleTiming.isFinished);
+  const [isTimeExpired, setIsTimeExpired] = useState<boolean>(
+    initialScheduleTiming.isFinished && !schedule.isActive
+  );
   const [autoSubmitCountdown, setAutoSubmitCountdown] = useState<number>(10);
   const [timeWarningToast, setTimeWarningToast] = useState<{ id: string; message: string; urgent?: boolean } | null>(null);
 
-  // Target end timestamp locked strictly to scheduled endTime
-  const targetEndTimeMsRef = useRef<number>(initialScheduleTiming.endDate.getTime());
+  // Target end timestamp locked to scheduled endTime or active duration from now
+  const targetEndTimeMsRef = useRef<number>(
+    (initialScheduleTiming.isOngoing && initialScheduleTiming.endDate.getTime() > Date.now())
+      ? initialScheduleTiming.endDate.getTime()
+      : schedule.isActive
+      ? Date.now() + (totalDurationSeconds * 1000)
+      : initialScheduleTiming.endDate.getTime()
+  );
   const hasTriggered10MinWarningRef = useRef<boolean>(false);
   const hasTriggered5MinWarningRef = useRef<boolean>(false);
   const hasAutoSubmittedRef = useRef<boolean>(false);
@@ -128,12 +161,12 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // 1. Request Fullscreen Utility
+  // 1. Request Fullscreen Utility with NavigationUI Hide & Keyboard Lock
   const enterFullscreen = useCallback(async () => {
     try {
       const elem = document.documentElement as any;
       if (elem.requestFullscreen) {
-        await elem.requestFullscreen();
+        await elem.requestFullscreen({ navigationUI: 'hide' });
       } else if (elem.webkitRequestFullscreen) {
         await elem.webkitRequestFullscreen();
       } else if (elem.mozRequestFullScreen) {
@@ -149,12 +182,33 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
           await (screen.orientation as any).lock('portrait');
         } catch (_) {}
       }
+
+      // Lock Task Mode / Kiosk Key Lock (Lock Esc, Tab, Meta, Alt, Fn)
+      if ('keyboard' in navigator && (navigator as any).keyboard?.lock) {
+        try {
+          await (navigator as any).keyboard.lock([
+            'Escape',
+            'Tab',
+            'AltLeft',
+            'AltRight',
+            'MetaLeft',
+            'MetaRight',
+            'KeyW',
+            'KeyN',
+            'KeyT',
+            'F1',
+            'F5',
+            'F11',
+            'F12'
+          ]);
+        } catch (_) {}
+      }
     } catch (err) {
       console.warn('Fullscreen request rejected:', err);
     }
   }, []);
 
-  // 2. Request Screen Wake Lock
+  // 2. Request Screen Wake Lock (Continuous On-Screen)
   const requestWakeLock = useCallback(async () => {
     if ('wakeLock' in navigator && (navigator as any).wakeLock) {
       try {
@@ -187,36 +241,165 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
     });
   }, [isSuspended, violationsCount, maxTolerance, student.noPeserta]);
 
-  // 4. Setup Strict Kiosk Event Listeners & Hardware Back Trap
+  // 4. Live Forensic Timestamp Clock (Unforgeable Watermark Digital Forensics)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveForensicTime(new Date().toLocaleTimeString('id-ID'));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 5. Anti-Screen Recording & Anti-Casting Interceptors
+  useEffect(() => {
+    // Intercept Screen Capture API
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+      try {
+        (navigator.mediaDevices as any).getDisplayMedia = async () => {
+          handleViolation(
+            'Perekaman Layar Terdeteksi',
+            'Mencoba mengakses API perekaman layar (Screen Capture) sistem.'
+          );
+          throw new DOMException('Perekaman layar diblokir oleh kebijakan keamanan BAGJA EXAM.', 'NotAllowedError');
+        };
+      } catch (_) {}
+    }
+
+    // Intercept Presentation / Screen Mirroring API
+    if (typeof navigator !== 'undefined' && (navigator as any).presentation) {
+      try {
+        (navigator as any).presentation.defaultRequest = null;
+      } catch (_) {}
+    }
+
+    // Check for Extended Display / Casting
+    const checkCasting = () => {
+      const isExtended = !!((window.screen as any)?.isExtended);
+      if (isExtended) {
+        setIsCastingDetected(true);
+        handleViolation('Screen Mirroring / Layar Ganda Terdeteksi', 'Gawai terhubung ke layar eksternal atau transmisi nirkabel.');
+      } else {
+        setIsCastingDetected(false);
+      }
+    };
+    checkCasting();
+    const castInterval = setInterval(checkCasting, 4000);
+    return () => clearInterval(castInterval);
+  }, [handleViolation]);
+
+  // 6. Portrait Orientation Lock & Split-Screen Viewport Monitor
+  useEffect(() => {
+    const handleOrientationAndViewport = () => {
+      // Portrait orientation check
+      const isLandscape = window.innerWidth > window.innerHeight && deviceType !== 'Komputer';
+      setIsLandscapeLocked(isLandscape);
+
+      // Split Screen / Floating Apps Detection on Mobile & Tablet
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
+      if (!isInputFocused && deviceType !== 'Komputer') {
+        const availH = window.screen.availHeight || window.innerHeight;
+        const availW = window.screen.availWidth || window.innerWidth;
+        const hRatio = window.innerHeight / availH;
+        const wRatio = window.innerWidth / availW;
+
+        if (hRatio < 0.72 || wRatio < 0.80) {
+          setIsSplitScreenDetected(true);
+          handleViolation(
+            'Layar Terbagi (Split-Screen) / Jendela Mengambang',
+            'Viewport gawai terbagi dengan aplikasi lain (Split-Screen atau Floating Window).'
+          );
+        } else {
+          setIsSplitScreenDetected(false);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleOrientationAndViewport);
+    window.addEventListener('orientationchange', handleOrientationAndViewport);
+    handleOrientationAndViewport();
+
+    return () => {
+      window.removeEventListener('resize', handleOrientationAndViewport);
+      window.removeEventListener('orientationchange', handleOrientationAndViewport);
+    };
+  }, [deviceType, handleViolation]);
+
+  // 7. FLAG_SECURE Curtain, Focus, Blur & Visibility Protection
+  useEffect(() => {
+    const handleBlur = () => {
+      setIsFlagSecureCurtainActive(true);
+      handleViolation(
+        'Aplikasi Kehilangan Fokus (Recent Apps / Home)',
+        'Fokus layar berpindah, tombol Home ditekan, atau Recent Apps task switcher dibuka.'
+      );
+    };
+
+    const handleFocus = () => {
+      setTimeout(() => {
+        setIsFlagSecureCurtainActive(false);
+      }, 250);
+      enterFullscreen();
+      requestWakeLock();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsFlagSecureCurtainActive(true);
+        handleViolation(
+          'Pindah Tab / Minimize Layar',
+          'Layar diminimalkan atau siswa beralih ke aplikasi lain.'
+        );
+      } else {
+        setTimeout(() => {
+          setIsFlagSecureCurtainActive(false);
+        }, 250);
+        requestWakeLock();
+      }
+    };
+
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [enterFullscreen, requestWakeLock, handleViolation]);
+
+  // 8. Hardware Back Trap, Edge Gestures & Touch Barriers
   useEffect(() => {
     enterFullscreen();
     requestWakeLock();
 
-    // History popstate trap to block hardware/browser Back button
-    window.history.pushState(null, '', window.location.href);
-    const handlePopState = () => {
-      window.history.pushState(null, '', window.location.href);
-      handleViolation('Tombol Kembali Ditekan', 'Mencoba menekan tombol back/kembali peramban atau hardware.');
+    // Aggressive history trap for hardware & browser Back button
+    for (let i = 0; i < 10; i++) {
+      window.history.pushState({ page: i }, '', window.location.href);
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      for (let i = 0; i < 5; i++) {
+        window.history.pushState(null, '', window.location.href);
+      }
+      handleViolation(
+        'Tombol Kembali (Back) Ditekan',
+        'Mencoba menekan tombol back hardware atau gestur kembali peramban.'
+      );
     };
     window.addEventListener('popstate', handlePopState);
 
-    // Visibility Change / Tab Blur Listener
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handleViolation('Pindah Tab / Minimize', 'Aplikasi peramban kehilangan fokus atau siswa berpindah tab.');
-      } else {
-        requestWakeLock();
-      }
+    // Prompt on beforeunload
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Ujian sedang berlangsung! Keluar akan membatalkan sesi ujian.';
+      return e.returnValue;
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Window Blur Listener
-    const handleWindowBlur = () => {
-      handleViolation('Jendela Kehilangan Fokus', 'Kursor atau fokus berpindah ke aplikasi luar.');
-    };
-    window.addEventListener('blur', handleWindowBlur);
-
-    // Fullscreen Change Listener
+    // Fullscreen change listener
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
       setIsFullscreen(isCurrentlyFullscreen);
@@ -227,21 +410,27 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
-    // Keyboard Shortcuts Blocker
+    // Keyboard Shortcuts & Screenshot Keys Blocker
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isForbiddenKey =
+      const isScreenshotKey =
+        e.key === 'PrintScreen' ||
+        (e.ctrlKey && (e.key === 'p' || e.key === 'P')) ||
+        (e.metaKey && e.shiftKey && ['3', '4', '5', 's', 'S'].includes(e.key)) ||
         e.key === 'F12' ||
         e.key === 'F5' ||
-        (e.ctrlKey && ['w', 'W', 't', 'T', 'n', 'N', 'r', 'R', 'u', 'U', 's', 'S', 'p', 'P'].includes(e.key)) ||
+        (e.ctrlKey && ['w', 'W', 't', 'T', 'n', 'N', 'r', 'R', 'u', 'U', 's', 'S'].includes(e.key)) ||
         (e.altKey && e.key === 'F4') ||
         (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) ||
         e.key === 'Escape' ||
         e.key === 'Meta';
 
-      if (isForbiddenKey) {
+      if (isScreenshotKey) {
         e.preventDefault();
         e.stopPropagation();
-        handleViolation('Pintasan Keyboard Terlarang', `Mencoba menekan kombinasi tombol terlarang: ${e.key}`);
+        handleViolation(
+          'Pintasan Terlarang / Tangkapan Layar',
+          `Mencoba menggunakan tombol terlarang: ${e.key}`
+        );
         return false;
       }
     };
@@ -254,52 +443,68 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
     };
     window.addEventListener('contextmenu', handleContextMenu);
 
-    // Touch gesture protection for mobile/tablet
+    // Touch gesture & Edge Back Swipe protection for mobile/tablet
+    let touchStartX = 0;
     const handleTouchStart = (e: TouchEvent) => {
+      // 3-finger screenshot gesture trap
       if (e.touches.length >= 3) {
         e.preventDefault();
-        handleViolation('Gestur Multi-Jari Terdeteksi', 'Mencoba gestur 3 jari (indikasi tangkapan layar / task switcher).');
+        handleViolation('Gestur Tangkapan Layar 3-Jari', 'Mencoba gestur 3 jari (indikasi tangkapan layar / screenshot).');
         return;
       }
 
       const touch = e.touches[0];
       if (touch) {
-        if (touch.clientY <= 30) {
+        touchStartX = touch.clientX;
+
+        // Notification shade pull-down guard
+        if (touch.clientY <= 38) {
           e.preventDefault();
-          handleViolation('Bilah Notifikasi Ditarik', 'Mencoba menarik bilah notifikasi sistem atas.');
+          handleViolation('Bilah Notifikasi / Status Bar Ditarik', 'Mencoba menarik bilah notifikasi sistem atas.');
+          return;
         }
-        if (touch.clientY >= window.innerHeight - 35) {
+
+        // Navigation bar pull-up guard
+        if (touch.clientY >= window.innerHeight - 38) {
           e.preventDefault();
-          handleViolation('Bilah Navigasi Ditarik', 'Mencoba menarik bilah navigasi sistem bawah.');
+          handleViolation('Bilah Navigasi Bawah Ditarik', 'Mencoba menarik bilah navigasi sistem bawah.');
+          return;
+        }
+
+        // Left or right edge swipe back gesture (Android 10+)
+        if (touch.clientX <= 25 || touch.clientX >= window.innerWidth - 25) {
+          setEdgeSwipeWarningToast('⚠️ Gestur Usap Tepi Layar Terdeteksi! Navigasi kembali dinonaktifkan demi integritas ujian.');
+          setTimeout(() => setEdgeSwipeWarningToast(null), 3000);
         }
       }
     };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        if ((touchStartX <= 25 || touchStartX >= window.innerWidth - 25) && deltaX > 35) {
+          e.preventDefault();
+          handleViolation(
+            'Gestur Usap Tepi Layar (Edge Back Gesture)',
+            'Mencoba gestur usap tepi layar untuk kembali atau berpindah aplikasi.'
+          );
+        }
+      }
+    };
+
     window.addEventListener('touchstart', handleTouchStart, { passive: false });
-
-    // Split screen detection
-    const handleResize = () => {
-      const currentHeight = window.innerHeight;
-      const initialHeight = initialHeightRef.current;
-      const heightRatio = currentHeight / initialHeight;
-      const activeEl = document.activeElement;
-      const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-
-      if (heightRatio < 0.65 && !isInputFocused) {
-        handleViolation('Layar Terbagi / Jendela Mengambang', 'Perubahan dimensi viewport terdeteksi (indikasi split-screen atau floating app).');
-      }
-    };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('touchmove', handleTouchMove);
       if (wakeLockRef.current) {
         wakeLockRef.current.release?.().catch(() => {});
       }
@@ -356,32 +561,7 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
     return () => clearInterval(timer);
   }, [schedule.endTime]);
 
-  // Auto-submit countdown when time is expired and modal is open
-  useEffect(() => {
-    if (!isTimeExpired || !showSubmitModal) return;
-
-    if (autoSubmitCountdown > 0) {
-      const autoTimer = setTimeout(() => {
-        setAutoSubmitCountdown(prev => prev - 1);
-      }, 1000);
-      return () => clearTimeout(autoTimer);
-    } else if (!hasAutoSubmittedRef.current && !isSubmitting) {
-      hasAutoSubmittedRef.current = true;
-      handleFinalSubmit();
-    }
-  }, [isTimeExpired, showSubmitModal, autoSubmitCountdown, isSubmitting]);
-
-  // Auto-dismiss warning toast after 7 seconds if not urgent
-  useEffect(() => {
-    if (timeWarningToast && !timeWarningToast.urgent) {
-      const t = setTimeout(() => {
-        setTimeWarningToast(null);
-      }, 7000);
-      return () => clearTimeout(t);
-    }
-  }, [timeWarningToast]);
-
-  // 8. Submit & Finish Exam (Defined early so handleStudentUnlocked can trigger auto-finish if expired)
+  // 8. Submit & Finish Exam
   const handleFinalSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
@@ -392,6 +572,31 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
       setIsSubmitting(false);
     }
   }, [student.noPeserta, onExamCompleted]);
+
+  // Auto-submit countdown when time is expired: guaranteed dispatch
+  useEffect(() => {
+    if (!isTimeExpired) return;
+
+    if (autoSubmitCountdown > 0) {
+      const autoTimer = setTimeout(() => {
+        setAutoSubmitCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(autoTimer);
+    } else if (!hasAutoSubmittedRef.current && !isSubmitting) {
+      hasAutoSubmittedRef.current = true;
+      handleFinalSubmit();
+    }
+  }, [isTimeExpired, autoSubmitCountdown, isSubmitting, handleFinalSubmit]);
+
+  // Auto-dismiss warning toast after 7 seconds if not urgent
+  useEffect(() => {
+    if (timeWarningToast && !timeWarningToast.urgent) {
+      const t = setTimeout(() => {
+        setTimeWarningToast(null);
+      }, 7000);
+      return () => clearTimeout(t);
+    }
+  }, [timeWarningToast]);
 
   // Centralized Unlock Handler: Recalculates remaining exam time strictly following scheduled startTime and endTime
   const handleStudentUnlocked = useCallback((source: string) => {
@@ -564,51 +769,22 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
 
         {/* Center: Live Countdown Timers & Exam Info */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Prominent Real-Time Exam Countdown Timer */}
-          <div
-            className={`flex items-center gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl border transition-all ${
-              timeRemainingSeconds <= 300
-                ? 'bg-rose-950/95 border-rose-500/80 text-rose-300 ring-2 ring-rose-500/40 animate-pulse'
-                : timeRemainingSeconds <= 600
-                ? 'bg-amber-950/90 border-amber-500/70 text-amber-300 ring-1 ring-amber-500/30'
-                : 'bg-slate-800/95 border-slate-700/80 text-white shadow-xs'
-            }`}
-            title="Sisa Waktu Pengerjaan Ujian Real-Time"
-          >
-            <div className={`p-1 rounded-lg shrink-0 ${
-              timeRemainingSeconds <= 300
-                ? 'bg-rose-600 text-white'
-                : timeRemainingSeconds <= 600
-                ? 'bg-amber-500 text-slate-950'
-                : 'bg-sky-500/20 text-sky-400'
-            }`}>
-              <Clock className="w-4 h-4" />
-            </div>
-            <div className="text-right">
-              <span className={`text-[9px] uppercase tracking-wider block font-bold leading-none ${
-                timeRemainingSeconds <= 300
-                  ? 'text-rose-300'
-                  : timeRemainingSeconds <= 600
-                  ? 'text-amber-300'
-                  : 'text-slate-400'
-              }`}>
-                {timeRemainingSeconds <= 300
-                  ? 'WAKTU KRITIS'
-                  : timeRemainingSeconds <= 600
-                  ? 'WAKTU MENIPIS'
-                  : 'SISA WAKTU'}
-              </span>
-              <span className={`text-xs sm:text-sm font-mono font-black tracking-wider block mt-0.5 ${
-                timeRemainingSeconds <= 300
-                  ? 'text-rose-300'
-                  : timeRemainingSeconds <= 600
-                  ? 'text-amber-300'
-                  : 'text-white'
-              }`}>
-                {formatTime(timeRemainingSeconds)}
-              </span>
-            </div>
-          </div>
+          {/* Prominent Real-Time Exam Countdown Timer Visual Component */}
+          <ExamCountdownTimer
+            schedule={schedule}
+            timeRemainingSeconds={timeRemainingSeconds}
+            totalDurationSeconds={totalDurationSeconds}
+            isTimeExpired={isTimeExpired}
+            onAutoSubmit={handleFinalSubmit}
+            autoSubmitCountdown={autoSubmitCountdown}
+            isSubmitting={isSubmitting}
+            answeredCount={answeredCount}
+            totalQuestions={totalQuestions}
+            studentName={student.nama}
+            noPeserta={student.noPeserta}
+            deviceType={deviceType}
+            onOpenSubmitModal={() => setShowSubmitModal(true)}
+          />
 
           {/* Exam Date Info badge */}
           <div className="hidden lg:flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/70 px-2.5 py-1.5 rounded-xl">
@@ -646,8 +822,18 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
           </div>
         </div>
 
-        {/* Right: Fullscreen lock check & Finish Exam button */}
+        {/* Right: Security Guide, Fullscreen lock check & Finish Exam button */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSecurityGuideModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 rounded-lg text-xs font-bold transition-all"
+            title="Panduan Lock Task Mode, DND & FLAG_SECURE"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden sm:inline">Keamanan Gawai</span>
+          </button>
+
           {!isFullscreen && (
             <button
               onClick={enterFullscreen}
@@ -705,16 +891,33 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
         </div>
       )}
 
+      {/* Edge Swipe Back Warning Toast */}
+      {edgeSwipeWarningToast && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-black flex items-center justify-between gap-3 shadow-lg z-40 shrink-0 border-b border-amber-600 animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-slate-950 animate-bounce" />
+            <span>{edgeSwipeWarningToast}</span>
+          </div>
+          <button
+            onClick={() => setEdgeSwipeWarningToast(null)}
+            className="text-xs font-bold px-2 py-0.5 bg-black/10 rounded cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* C. EXAM QUESTION VIEWPORT (GOOGLE FORM INTEGRATION & WORKSPACE) */}
-      <main className="flex-1 relative bg-white overflow-hidden flex flex-col">
-        {/* Dynamic Micro-Transparent Watermark Overlay (Anti Screen-Record & Photo) */}
-        <div className="absolute inset-0 pointer-events-none z-30 select-none overflow-hidden opacity-35">
-          <div className="w-full h-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-12 p-6 rotate-[-15deg] scale-110">
-            {Array.from({ length: 24 }).map((_, idx) => (
-              <div key={idx} className="text-center font-mono text-[10px] sm:text-xs text-sky-900/20 font-bold whitespace-nowrap">
+      <main className="flex-1 relative bg-white overflow-hidden flex flex-col exam-player-viewport">
+        {/* Dynamic Steganographic Forensic Watermark Overlay (Anti Screen-Record & Photo Forensics) */}
+        <div className="absolute inset-0 pointer-events-none z-30 select-none overflow-hidden opacity-40">
+          <div className="w-full h-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-10 p-6 animate-watermark-drift scale-110">
+            {Array.from({ length: 28 }).map((_, idx) => (
+              <div key={idx} className="text-center font-mono text-[10px] sm:text-xs text-sky-950/25 font-black whitespace-nowrap tracking-wider">
                 <p>{student.nama}</p>
                 <p>{student.nisn} · {student.noPeserta}</p>
-                <p>{student.ruang} · SMPN 7 CIMAHI</p>
+                <p>{student.ruang} · {liveForensicTime} WIB</p>
+                <p className="text-[9px] text-sky-900/20 uppercase tracking-widest font-bold">BAGJA EXAM · FLAG_SECURE</p>
               </div>
             ))}
           </div>
@@ -771,10 +974,20 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
             <span>Token: <strong className="font-mono text-sky-700">{schedule.token}</strong></span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setShowSecurityGuideModal(true)}
+              className="sm:hidden px-2.5 py-1 bg-slate-800 text-sky-300 font-bold rounded-lg shadow-xs flex items-center gap-1 text-[11px]"
+              title="Keamanan Mobile"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+              <span>Keamanan</span>
+            </button>
             <span className="text-slate-500 hidden sm:inline">Perangkat: <strong className="text-slate-700">{deviceType}</strong></span>
             <span className="hidden sm:inline">·</span>
             <button
+              type="button"
               onClick={() => setShowAnswerSheet(!showAnswerSheet)}
               className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
             >
@@ -956,7 +1169,7 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
       )}
 
       {/* F. EXAM SUBMISSION SUMMARY CONFIRMATION MODAL */}
-      {showSubmitModal && (
+      {showSubmitModal && !isTimeExpired && (
         <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center gap-3">
@@ -1045,6 +1258,211 @@ export const ExamPlayerPage: React.FC<ExamPlayerPageProps> = ({
                   : isTimeExpired
                   ? `Serahkan Sekarang (${autoSubmitCountdown}s)`
                   : 'Kirim & Selesai'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* G. FLAG_SECURE PRIVACY CURTAIN (ANTI-SCREENSHOT & RECENT APPS BLANKING) */}
+      {isFlagSecureCurtainActive && !isSuspended && (
+        <div
+          onClick={() => {
+            setIsFlagSecureCurtainActive(false);
+            enterFullscreen();
+          }}
+          className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 text-white text-center select-none cursor-pointer"
+        >
+          <div className="w-16 h-16 rounded-full bg-rose-600/20 border border-rose-500 text-rose-500 flex items-center justify-center mb-4 animate-pulse">
+            <ShieldAlert className="w-9 h-9" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950 border border-rose-800 text-rose-300 text-[11px] font-extrabold uppercase tracking-widest mb-3">
+            FLAG_SECURE AKTIF · PRIVASI LAYAR TERKUNCI
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Layar Ujian Diamankan
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-sm mt-2 leading-relaxed">
+            Sistem mendeteksi kehilangan fokus peramban, pembukaan task switcher (Recent Apps), tombol Home, atau indikasi tangkapan layar.
+          </p>
+          <div className="mt-4 p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 font-mono">
+            <span>{student.nama} · {student.noPeserta} · {liveForensicTime} WIB</span>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFlagSecureCurtainActive(false);
+              enterFullscreen();
+            }}
+            className="mt-6 px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
+          >
+            Ketuk untuk Kembali Mengerjakan Ujian
+          </button>
+        </div>
+      )}
+
+      {/* H. KUNCI ORIENTASI POTRET (PORTRAIT ORIENTATION LOCK ENFORCER) */}
+      {isLandscapeLocked && !isSuspended && (
+        <div className="fixed inset-0 z-50 bg-slate-950/98 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500 text-amber-400 flex items-center justify-center mb-4 animate-spin">
+            <RotateCcw className="w-8 h-8" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950 border border-amber-800 text-amber-300 text-[11px] font-extrabold uppercase tracking-widest mb-3">
+            ORIENTASI WAJIB POTRET
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-white">
+            Putar Gawai ke Posisi Tegak (Potret)
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-sm mt-2 leading-relaxed">
+            Pengerjaan ujian pada gawai handphone dan tablet wajib dalam orientasi tegak lurus (vertikal) demi menjaga tata letak soal dan integritas pengawasan.
+          </p>
+          <button
+            type="button"
+            onClick={enterFullscreen}
+            className="mt-6 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Kunci Ulang Posisi Potret</span>
+          </button>
+        </div>
+      )}
+
+      {/* I. DETEKSI SPLIT-SCREEN & JENDELA MENGAMBANG (SPLIT-SCREEN DETECTOR) */}
+      {isSplitScreenDetected && !isSuspended && (
+        <div className="fixed inset-0 z-50 bg-rose-950/98 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center">
+          <div className="w-16 h-16 rounded-2xl bg-rose-600/20 border border-rose-500 text-rose-400 flex items-center justify-center mb-4 animate-pulse">
+            <Columns2 className="w-9 h-9" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-900 border border-rose-700 text-rose-200 text-[11px] font-extrabold uppercase tracking-widest mb-3">
+            PELANGGARAN SPLIT-SCREEN TERDETEKSI
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-white">
+            Mode Layar Terbagi Dilarang!
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-sm mt-2 leading-relaxed">
+            Sistem mendeteksi gawai Anda terbagi (Split-Screen) atau membuka jendela mengambang (Floating App / Pop-up). Tutup aplikasi lain dan kembalikan ke 1 layar penuh untuk membuka soal.
+          </p>
+          <button
+            type="button"
+            onClick={enterFullscreen}
+            className="mt-6 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
+          >
+            Pulihkan ke 1 Layar Penuh
+          </button>
+        </div>
+      )}
+
+      {/* J. BLOKIR SCREEN CASTING & MIRRORING (SCREEN MIRRORING DETECTOR) */}
+      {isCastingDetected && !isSuspended && (
+        <div className="fixed inset-0 z-50 bg-slate-950/98 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500 text-indigo-400 flex items-center justify-center mb-4 animate-pulse">
+            <Cast className="w-9 h-9" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-950 border border-indigo-800 text-indigo-300 text-[11px] font-extrabold uppercase tracking-widest mb-3">
+            SCREEN MIRRORING DIBLOKIR
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-white">
+            Koneksi Layar Eksternal Terdeteksi
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-sm mt-2 leading-relaxed">
+            Transmisi nirkabel (Wireless Casting / Chromecast / AirPlay) atau kabel layar ganda dilarang selama ujian berlangsung. Putuskan sambungan layar sekunder untuk melanjutkan.
+          </p>
+        </div>
+      )}
+
+      {/* K. MODAL PANDUAN KEAMANAN MOBILE (LOCK TASK MODE & DND GUIDE) */}
+      {showSecurityGuideModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-sky-800/60 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-600/20 border border-sky-500/40 text-sky-400 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-white">
+                    Protokol Keamanan Mode Gawai
+                  </h3>
+                  <p className="text-[11px] text-sky-400">SMPN 7 Cimahi · Perlindungan Kiosk Ketat</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSecurityGuideModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs text-slate-300">
+              {/* Feature 1: Lock Task Mode */}
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-center gap-2 text-sky-400 font-bold">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  <span>1. Lock Task Mode (Kunci Tombol Home & Recent Apps)</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Pada Android (Samsung, Xiaomi, Oppo, Vivo, Realme), Anda dapat mengaktifkan fitur <strong>Sematkan Aplikasi (App Pinning)</strong> di Pengaturan Keamanan. Fitur ini secara fisik mengunci tombol Home dan Recent Apps agar layar tidak dapat keluar secara tidak sengaja.
+                </p>
+              </div>
+
+              {/* Feature 2: FLAG_SECURE */}
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-center gap-2 text-rose-400 font-bold">
+                  <EyeOff className="w-4 h-4 shrink-0" />
+                  <span>2. FLAG_SECURE & Proteksi Tangkapan Layar</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Sistem mengaktifkan <em>Privacy Curtain</em> yang otomatis menghitamkan layar saat task switcher dibuka. Kombinasi tombol tangkapan layar, gestur 3 jari, dan perekaman layar akan langsung memicu sirine alarm dan mencatat pelanggaran.
+                </p>
+              </div>
+
+              {/* Feature 3: Penanganan Tombol Back */}
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-center gap-2 text-amber-400 font-bold">
+                  <RotateCcw className="w-4 h-4 shrink-0" />
+                  <span>3. Penanganan Tombol Back & Usap Tepi Layar</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Tombol kembali hardware dan gestur usap tepi (<em>edge back gesture</em>) Android 10+ dinonaktifkan. Anda tidak akan keluar dari ujian saat mengusap tepi layar.
+                </p>
+              </div>
+
+              {/* Feature 4: Kebijakan DND */}
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <VolumeX className="w-4 h-4 shrink-0" />
+                  <span>4. Kebijakan Jangan Ganggu (DND) & Notifikasi</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Peserta diwajibkan menyalakan <strong>Mode Jangan Ganggu (Do Not Disturb)</strong> dan mematikan gelembung obrolan (*floating bubbles*). Menarik bilah notifikasi atas terdeteksi sebagai pelanggaran.
+                </p>
+              </div>
+
+              {/* Feature 5: Split-Screen & Orientation */}
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-center gap-2 text-indigo-400 font-bold">
+                  <Columns2 className="w-4 h-4 shrink-0" />
+                  <span>5. Deteksi Split-Screen & Kunci Orientasi Potret</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Mode layar terbagi (Split-Screen), jendela mengambang, serta orientasi lanskap dilarang keras. Gawai wajib dalam posisi tegak lurus (potret) dengan 1 layar penuh.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSecurityGuideModal(false);
+                  enterFullscreen();
+                }}
+                className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all"
+              >
+                Saya Mengerti & Lanjutkan Ujian
               </button>
             </div>
           </div>

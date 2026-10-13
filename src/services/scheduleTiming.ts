@@ -97,14 +97,27 @@ export function getScheduleTiming(schedule: Schedule, customNow?: Date): Schedul
   const startMs = startDate.getTime();
   const endMs = endDate.getTime();
 
-  const totalDurationSeconds = Math.max(60, Math.round((endMs - startMs) / 1000));
+  const totalDurationSeconds = Math.max(60, Math.round(((schedule.durationMinutes || 90) * 60)));
 
   let status: 'BELUM_DIMULAI' | 'SEDANG_BERLANGSUNG' | 'SELESAI';
   let secondsUntilStart = 0;
   let remainingSeconds = 0;
   let progressPercent = 0;
 
-  if (nowMs < startMs) {
+  if (schedule.isActive) {
+    // If the administrator has explicitly activated the schedule, it is actively in progress
+    status = 'SEDANG_BERLANGSUNG';
+    secondsUntilStart = 0;
+    if (nowMs < endMs && nowMs >= startMs) {
+      remainingSeconds = Math.max(60, Math.floor((endMs - nowMs) / 1000));
+      const elapsedSec = Math.max(0, Math.floor((nowMs - startMs) / 1000));
+      progressPercent = Math.min(100, Math.round((elapsedSec / totalDurationSeconds) * 100));
+    } else {
+      // Actively running session (extended or manual activation)
+      remainingSeconds = totalDurationSeconds;
+      progressPercent = 5;
+    }
+  } else if (nowMs < startMs) {
     status = 'BELUM_DIMULAI';
     secondsUntilStart = Math.max(0, Math.ceil((startMs - nowMs) / 1000));
     remainingSeconds = totalDurationSeconds;
@@ -185,8 +198,11 @@ export function calculateRemainingSecondsOnUnlock(schedule: Schedule, customNow?
 } {
   const now = customNow || new Date();
   const { endDate } = parseScheduleDateTimes(schedule, now);
-  const remainingSeconds = Math.max(0, Math.floor((endDate.getTime() - now.getTime()) / 1000));
-  const isExpired = remainingSeconds <= 0;
+  let remainingSeconds = Math.max(0, Math.floor((endDate.getTime() - now.getTime()) / 1000));
+  if (schedule.isActive && remainingSeconds <= 0) {
+    remainingSeconds = (schedule.durationMinutes || 90) * 60;
+  }
+  const isExpired = !schedule.isActive && remainingSeconds <= 0;
 
   return {
     remainingSeconds,

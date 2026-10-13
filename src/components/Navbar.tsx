@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, Monitor, Smartphone, Tablet, AlertTriangle, RefreshCw, LogOut, CheckCircle2 } from 'lucide-react';
 import { DeviceType } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
   deviceType: DeviceType;
@@ -90,48 +91,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Center / Right Metadata Indicators */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Portal Switcher Pills (Integrasi 3 Portal) */}
-          {onSwitchPortal && (
-            <div className="hidden md:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => onSwitchPortal('portal')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  currentView === 'portal'
-                    ? 'bg-white text-sky-800 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Pindah ke Portal Login Siswa / Peserta"
-              >
-                Portal Ujian
-              </button>
-              <button
-                type="button"
-                onClick={() => onSwitchPortal('supervisor')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  currentView === 'supervisor'
-                    ? 'bg-sky-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Pusat Kendali Pengawas Ruangan"
-              >
-                Portal Pengawas
-              </button>
-              <button
-                type="button"
-                onClick={() => onSwitchPortal('admin')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  currentView === 'admin'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Pusat Kendali Administrator Utama"
-              >
-                Portal Admin
-              </button>
-            </div>
-          )}
-
           {/* Device Detection Badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600">
             {deviceType === 'Handphone' && <Smartphone className="w-3.5 h-3.5 text-sky-600" />}
@@ -140,6 +99,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden md:inline">Perangkat:</span>
             <span className="font-semibold text-slate-800">{deviceType}</span>
           </div>
+
+          {/* In-App PWA Install Trigger */}
+          <PWAInstallButton variant="navbar" />
 
           {/* User Session Info & Logout */}
           {currentUser && !hideNavActions && (

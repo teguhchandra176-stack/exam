@@ -8,6 +8,7 @@ import { ExamPlayerPage } from './components/ExamPlayerPage';
 import { SupervisorDashboard } from './components/SupervisorDashboard';
 import { AdminPortal } from './components/AdminPortal';
 import { StudioCetakDokumen } from './components/StudioCetakDokumen';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   const [database, setDatabase] = useState<DatabaseSchema | null>(null);
@@ -217,6 +218,16 @@ export default function App() {
             supervisor={activeSupervisor}
             database={database}
             onRefreshDatabase={loadDatabase}
+            onOpenPrintStudio={(room) => {
+              setDirectPrintRoom(room);
+              setCurrentView('studio_cetak_room');
+            }}
+            onSwitchPortal={(portal) => {
+              if (portal === 'portal') setCurrentView('portal');
+              else if (portal === 'admin') setCurrentView('admin');
+              else if (portal === 'supervisor') setCurrentView('supervisor');
+            }}
+            onLogout={handleLogout}
           />
         )}
 
@@ -239,6 +250,9 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Global PWA Offline Connectivity Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }

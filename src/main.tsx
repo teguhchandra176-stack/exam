@@ -2,11 +2,26 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+// PWA Service Worker Registration
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.warn('Service Worker registration skipped:', err);
-    });
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        reg.addEventListener('updatefound', () => {
+          const installingWorker = reg.installing;
+          if (installingWorker) {
+            installingWorker.addEventListener('statechange', () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.info('BAGJA EXAM PWA: Versi baru telah tersedia di cache latar belakang.');
+              }
+            });
+          }
+        });
+      })
+      .catch((err) => {
+        console.warn('BAGJA EXAM: Service Worker registration:', err);
+      });
   });
 }
 

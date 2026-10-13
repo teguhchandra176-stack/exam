@@ -58,3 +58,21 @@
     transparent 300px
   );
 }
+
+/* Subtle Dynamic Steganographic Jitter Animation for Forensics */
+@keyframes watermarkDrift {
+  0% { transform: translate(0px, 0px) rotate(-15deg); }
+  50% { transform: translate(8px, 6px) rotate(-14.5deg); }
+  100% { transform: translate(0px, 0px) rotate(-15deg); }
+}
+
+.animate-watermark-drift {
+  animation: watermarkDrift 18s ease-in-out infinite alternate;
+}
+
+/* Strict Exam Mode Print Blackout */
+@media print {
+  .exam-player-viewport {
+    display: none !important;
+  }
+}

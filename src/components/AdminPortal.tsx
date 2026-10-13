@@ -55,6 +55,7 @@ import { SmartImportModal } from './SmartImportModal';
 import { JadwalPengawasanManager } from './JadwalPengawasanManager';
 import { formatIndonesianDate } from '../services/dateFormatter';
 import { getScheduleTiming } from '../services/scheduleTiming';
+import { PWAInstallButton } from './PWAInstallButton';
 import {
   MAX_STUDENTS_PER_ROOM,
   MAX_STUDENTS_PER_LAB,
@@ -1118,11 +1119,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       ) : (
                         <button
                           onClick={() => {
+                            const now = new Date();
+                            const pad = (n: number) => n.toString().padStart(2, '0');
+                            const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+                            const startH = pad(now.getHours());
+                            const startM = pad(now.getMinutes());
+                            const dur = sch.durationMinutes || 90;
+                            const endDate = new Date(now.getTime() + dur * 60 * 1000);
+                            const endH = pad(endDate.getHours());
+                            const endM = pad(endDate.getMinutes());
+
                             const updated = {
                               ...database,
-                              schedules: database.schedules.map(s => s.id === sch.id ? { ...s, isActive: true } : s)
+                              schedules: database.schedules.map(s => s.id === sch.id ? {
+                                ...s,
+                                isActive: true,
+                                date: dateStr,
+                                startTime: `${startH}:${startM}`,
+                                endTime: `${endH}:${endM}`
+                              } : s)
                             };
-                            onSaveDatabase(updated, 'Mulai Ujian', `Ujian ${sch.subject} diaktifkan.`);
+                            onSaveDatabase(updated, 'Mulai Ujian', `Ujian ${sch.subject} diaktifkan (${startH}:${startM} - ${endH}:${endM} WIB).`);
                           }}
                           className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                         >
@@ -1897,7 +1914,48 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
 
-          {/* Section D: Factory Reset Master Database */}
+          {/* Section E: Status Progressive Web App (PWA) & Offline Cache */}
+          <div className="bg-white rounded-2xl border border-sky-100 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                  Progressive Web App (PWA) & Kiosk Standalone
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Status instalasi aplikasi mandiri tanpa Play Store di Android, iOS, Windows, macOS, dan Chromebook.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                PWA Aktif & Siap Pasang
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-slate-500 font-medium">Web App Manifest</div>
+                <div className="text-slate-900 font-bold mt-1">/manifest.webmanifest</div>
+                <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">✓ Standalone · Kunci Portrait</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-slate-500 font-medium">Service Worker Cache</div>
+                <div className="text-slate-900 font-bold mt-1">/sw.js (Aktif)</div>
+                <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">✓ Cache Stale-While-Revalidate</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-slate-500 font-medium">Ikon Adaptif Layar</div>
+                <div className="text-slate-900 font-bold mt-1">192px · 512px · Maskable</div>
+                <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">✓ Android & iOS Apple Touch</div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <PWAInstallButton variant="banner" />
+            </div>
+          </div>
+
+          {/* Section F: Factory Reset Master Database */}
           <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h4 className="text-sm font-extrabold text-rose-900">

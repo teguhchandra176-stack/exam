@@ -26,7 +26,8 @@ import {
   KeyRound,
   CalendarCheck,
   Calendar,
-  DoorOpen
+  DoorOpen,
+  Printer
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { DatabaseSchema, Supervisor, Student, IntegrityLog } from '../types';
@@ -41,6 +42,7 @@ interface SupervisorDashboardProps {
   onRefreshDatabase: () => Promise<void>;
   onSwitchPortal?: (portal: 'portal' | 'supervisor' | 'admin') => void;
   onLogout?: () => void;
+  onOpenPrintStudio?: (room: string) => void;
 }
 
 export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
@@ -49,6 +51,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   onRefreshDatabase,
   onSwitchPortal,
   onLogout,
+  onOpenPrintStudio,
 }) => {
   // ROOM SCOPE: Supports active monitored room switching if proctor has multiple assigned rooms
   const [currentRoom, setCurrentRoom] = useState<string>(supervisor.ruang || (database.rooms && database.rooms[0]) || 'Lab Komputer');
@@ -376,6 +379,18 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
             <CalendarCheck className="w-4 h-4 text-indigo-600" />
             <span>Jadwal Tugas ({myDuties.length})</span>
           </button>
+
+          {/* Cetak Dokumen Ruangan Button */}
+          {onOpenPrintStudio && (
+            <button
+              onClick={() => onOpenPrintStudio(assignedRoom)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold text-xs rounded-xl shadow-2xs transition-colors"
+              title="Cetak Berita Acara, Daftar Hadir & Dokumen Ruangan"
+            >
+              <Printer className="w-4 h-4 text-sky-600" />
+              <span>Cetak Dokumen</span>
+            </button>
+          )}
 
           {/* Mass Unlock Button */}
           <button
